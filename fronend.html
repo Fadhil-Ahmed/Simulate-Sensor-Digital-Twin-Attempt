@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Control Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 700px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 10px;
+            margin: 5px;
+        }
+        input[type="number"] {
+            width: 60px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Robot Control Dashboard</h2>
+
+    <div>
+        <p>Status: <span id="robotStatus">Loading...</span></p>
+        <p>Speed: <span id="robotSpeed">Loading...</span></p>
+        <button onclick="sendCommand('start')">Start</button>
+        <button onclick="sendCommand('stop')">Stop</button>
+        <label for="speed">Speed: </label>
+        <input type="number" id="speed" value="3">
+    </div>
+
+    <hr>
+
+    <h3>Sensor Data</h3>
+    <canvas id="sensorChart" width="600" height="300"></canvas>
+</div>
+
+<script>
+const statusEl = document.getElementById("robotStatus");
+const speedEl = document.getElementById("robotSpeed");
+const speedInput = document.getElementById("speed");
+const ctx = document.getElementById('sensorChart').getContext('2d');
+
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Sensor Value',
+            data: [],
+            borderWidth: 1,
+            fill: false,
+            borderColor: 'blue'
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+function fetchStatus() {
+    fetch('http://127.0.0.1:8000/status')
+        .then(res => res.json())
+        .then(data => {
+            statusEl.innerText = data.status;
+            speedEl.innerText = data.speed;
+        });
+}
+
+function sendCommand(action) {
+    fetch('http://127.0.0.1:8000/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action, speed: parseInt(speedInput.value) })
+    }).then(fetchStatus);
+}
+
+function fetchSensorData() {
+    fetch('http://127.0.0.1:8000/get_sensor_data')
+        .then(res => res.json())
+        .then(data => {
+            chart.data.labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
+            chart.data.datasets[0].data = data.map(d => d.value);
+            chart.update();
+        });
+}
+
+fetchStatus();
+fetchSensorData();
+setInterval(fetchStatus, 2000);
+setInterval(fetchSensorData, 3000);
+</script>
+
+</body>
+</html>
